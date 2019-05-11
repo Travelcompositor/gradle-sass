@@ -70,7 +70,7 @@ class SassPlugin : Plugin<Project> {
 
         val sassCompile = task<SassTask>("sassCompile") {
             group = "build"
-            source = fileTree("src/main/sass")
+            inputDir = file("$projectDir/src/main/webapp/")
         }
         tasks[LifecycleBasePlugin.BUILD_TASK_NAME].dependsOn(sassCompile)
 
