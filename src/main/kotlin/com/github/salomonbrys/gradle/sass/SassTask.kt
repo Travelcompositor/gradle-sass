@@ -23,13 +23,19 @@ open class SassTask : ConventionTask() {
     @PathSensitive(PathSensitivity.ABSOLUTE)
     var inputDir = project.projectDir.resolve("src/main/webapp")
 
+    @InputDirectory
+    @PathSensitive(PathSensitivity.ABSOLUTE)
+    var loadPath = project.projectDir.resolve("src/main/webapp")
+
+
     enum class Url {
         RELATIVE,
         ABSOLUTE
     }
 
-    sealed class SourceMaps: Serializable {
+    sealed class SourceMaps : Serializable {
         abstract val embedSource: Boolean
+
         data class None(override var embedSource: Boolean = false) : SourceMaps()
         data class Embed(override var embedSource: Boolean = false) : SourceMaps()
         data class File(override var embedSource: Boolean = false, var url: Url = Url.RELATIVE) : SourceMaps() {
@@ -84,15 +90,17 @@ open class SassTask : ConventionTask() {
         val ext = project.extensions["sass"] as SassExtension
         project.exec {
             val exe = ext.exe
-            executable = when (exe) {
+            val execute = when (exe) {
                 is SassExtension.Exe.Local -> exe.path
                 is SassExtension.Exe.Download -> "${exe.outputDir.absolutePath}/${exe.version}/dart-sass/${ext.DEFAULT_SASS_EXE}"
             }
+            executable = execute
             val sm = sourceMaps
-            args =
+            var arguments =
                     listOf(
                             "${inputDir}:${outputDir}",
-                            "--style=$style",
+                            "--load-path=${loadPath}",
+                            "--style=${style}",
                             "--update"
                     ) +
                             when (sm) {
@@ -104,8 +112,10 @@ open class SassTask : ConventionTask() {
                                 true -> listOf("--embed-sources")
                                 false -> listOf("--no-embed-sources")
                             }
+            args = arguments
+            val argumentString = arguments.joinToString(separator = " ")
+            println("[sassCompile] EXECUTING: $execute $argumentString")
         }
-
 
 
     }
