@@ -1,6 +1,7 @@
 package com.github.salomonbrys.gradle.sass
 
 import groovy.lang.Closure
+import org.apache.tools.ant.taskdefs.condition.Os
 import org.gradle.api.Action
 import org.gradle.api.internal.ConventionTask
 import org.gradle.api.tasks.CacheableTask
@@ -11,7 +12,10 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.get
+import java.io.File
 import java.io.Serializable
+import java.util.concurrent.ForkJoinPool
+import java.util.concurrent.ForkJoinTask
 
 @CacheableTask
 open class SassTask : ConventionTask() {
@@ -85,38 +89,61 @@ open class SassTask : ConventionTask() {
         sourceMaps = SourceMaps.File().apply(action)
     }
 
+
     @TaskAction
     internal fun compileSass() {
         val ext = project.extensions["sass"] as SassExtension
-        project.exec {
-            val exe = ext.exe
-            val execute = when (exe) {
-                is SassExtension.Exe.Local -> exe.path
-                is SassExtension.Exe.Download -> "${exe.outputDir.absolutePath}/${exe.version}/dart-sass/${ext.DEFAULT_SASS_EXE}"
-            }
-            executable = execute
-            val sm = sourceMaps
-            var arguments =
-                    listOf(
-                            "${inputDir}:${outputDir}",
-                            "--load-path=${loadPath}",
-                            "--style=${style}",
-                            "--update"
-                    ) +
-                            when (sm) {
-                                is SourceMaps.None -> listOf("--no-source-map")
-                                is SourceMaps.Embed -> listOf("--embed-source-map")
-                                is SourceMaps.File -> listOf("--source-map-urls", sm.url.name.toLowerCase())
-                            } +
-                            when (sm.embedSource) {
-                                true -> listOf("--embed-sources")
-                                false -> listOf("--no-embed-sources")
-                            }
-            args = arguments
-            val argumentString = arguments.joinToString(separator = " ")
-            println("[sassCompile] EXECUTING: $execute $argumentString")
+        var files: Set<File>
+        val exe = ext.exe
+        var execute = when (exe) {
+            is SassExtension.Exe.Local -> exe.path
+            is SassExtension.Exe.Download -> "${exe.outputDir.absolutePath}/${exe.version}/dart-sass/${ext.DEFAULT_SASS_EXE}"
+        }
+        val isWindows = Os.isFamily(Os.FAMILY_WINDOWS)
+        if (isWindows) {
+            files = setOf(inputDir)
+        } else {
+            files = project.fileTree(inputDir).filter { it.extension.equals("scss") && !it.name.startsWith("_") }.files
         }
 
 
+        val myPool = ForkJoinPool(Runtime.getRuntime().availableProcessors())
+        val tasks = mutableListOf<ForkJoinTask<*>>()
+        for (file in files) {
+            tasks.add(myPool.submit {
+                val relativePath = file.relativeTo(inputDir)
+                val outputPath = File(outputDir.absolutePath + "/" + relativePath.path)
+
+                project.exec {
+                    executable = execute
+                    val sm = sourceMaps
+                    var arguments =
+                            listOf(
+                                    "${file.absolutePath}:${outputPath.absolutePath}",
+                                    "--style=${style}",
+                                    "--update"
+                            ) +
+                                    when (sm) {
+                                        is SourceMaps.None -> listOf("--no-source-map")
+                                        is SourceMaps.Embed -> listOf("--embed-source-map")
+                                        is SourceMaps.File -> listOf("--source-map-urls", sm.url.name.toLowerCase())
+                                    } +
+                                    when (sm.embedSource) {
+                                        true -> listOf("--embed-sources")
+                                        false -> listOf("--no-embed-sources")
+                                    } +
+                                    when (isWindows) {
+                                        true -> listOf("--load-path=${loadPath}")
+                                        false -> listOf()
+                                    }
+                    args = arguments
+                    val argumentString = arguments.joinToString(separator = " ")
+                    println("${Thread.currentThread().name}[sassCompile] EXECUTING: $execute $argumentString")
+                }
+            })
+        }
+        for (task in tasks) {
+            task.get()
+        }
     }
 }
