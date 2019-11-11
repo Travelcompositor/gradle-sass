@@ -14,6 +14,7 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.kotlin.dsl.get
 import java.io.File
 import java.io.Serializable
+import java.util.Date
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.ForkJoinTask
 
@@ -92,6 +93,7 @@ open class SassTask : ConventionTask() {
 
     @TaskAction
     internal fun compileSass() {
+        val now = Date()
         val ext = project.extensions["sass"] as SassExtension
         var files: Set<File>
         val exe = ext.exe
@@ -119,9 +121,9 @@ open class SassTask : ConventionTask() {
                     val sm = sourceMaps
                     var arguments =
                             listOf(
-                                    "${file.absolutePath}:${outputPath.absolutePath}",
-                                    "--style=${style}",
-                                    "--update"
+                                    "${file.absolutePath}:${outputPath.absolutePath.replace(".scss", ".css")}"
+                                    , "--style=${style}"
+                                    , "--update"
                             ) +
                                     when (sm) {
                                         is SourceMaps.None -> listOf("--no-source-map")
@@ -138,12 +140,15 @@ open class SassTask : ConventionTask() {
                                     }
                     args = arguments
                     val argumentString = arguments.joinToString(separator = " ")
-                    println("${Thread.currentThread().name}[sassCompile] EXECUTING: $execute $argumentString")
+                    if (isWindows) {
+                        println("[sassCompile] EXECUTING: $execute $argumentString")
+                    }
                 }
             })
         }
         for (task in tasks) {
             task.get()
         }
+        println("SassCompile completed in ${Date().time - now.time} ms")
     }
 }
