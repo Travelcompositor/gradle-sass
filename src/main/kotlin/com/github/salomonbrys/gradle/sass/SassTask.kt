@@ -1,7 +1,6 @@
 package com.github.salomonbrys.gradle.sass
 
 import groovy.lang.Closure
-import org.apache.tools.ant.taskdefs.condition.Os
 import org.gradle.api.Action
 import org.gradle.api.internal.ConventionTask
 import org.gradle.api.tasks.CacheableTask
@@ -15,6 +14,7 @@ import org.gradle.kotlin.dsl.get
 import java.io.File
 import java.io.Serializable
 import java.util.Date
+import java.util.StringJoiner
 import java.util.concurrent.ForkJoinPool
 import java.util.concurrent.ForkJoinTask
 
@@ -25,11 +25,11 @@ open class SassTask : ConventionTask() {
     var outputDir = project.buildDir.resolve("sass")
 
     @InputDirectory
-    @PathSensitive(PathSensitivity.ABSOLUTE)
+    @PathSensitive(PathSensitivity.RELATIVE)
     var inputDir = project.projectDir.resolve("src/main/webapp")
 
     @InputDirectory
-    @PathSensitive(PathSensitivity.ABSOLUTE)
+    @PathSensitive(PathSensitivity.RELATIVE)
     var loadPath = project.projectDir.resolve("src/main/webapp")
 
 
@@ -95,60 +95,62 @@ open class SassTask : ConventionTask() {
     internal fun compileSass() {
         val now = Date()
         val ext = project.extensions["sass"] as SassExtension
-        var files: Set<File>
         val exe = ext.exe
         var execute = when (exe) {
             is SassExtension.Exe.Local -> exe.path
             is SassExtension.Exe.Download -> "${exe.outputDir.absolutePath}/${exe.version}/dart-sass/${ext.DEFAULT_SASS_EXE}"
         }
-        val isWindows = Os.isFamily(Os.FAMILY_WINDOWS)
-        if (isWindows) {
-            files = setOf(inputDir)
-        } else {
-            files = project.fileTree(inputDir).filter { it.extension.equals("scss") && !it.name.startsWith("_") }.files
-        }
+        var allFiles = project.fileTree(inputDir).filter { it.extension.equals("scss") && !it.name.startsWith("_") }.files
+        val tasksInparalel = Math.max(4, Runtime.getRuntime().availableProcessors() - 3) // 4 como minimo porque sino tendremos el error de linea de mas de 8192 caracteres
+        val chunkSize = Math.ceil(allFiles.size.toDouble() / tasksInparalel).toInt()
 
-
-        val myPool = ForkJoinPool(Runtime.getRuntime().availableProcessors())
+        val chunkedList = allFiles.chunked(chunkSize)
+        val myPool = ForkJoinPool(chunkedList.size)
         val tasks = mutableListOf<ForkJoinTask<*>>()
-        for (file in files) {
+        for (files in chunkedList) {
             tasks.add(myPool.submit {
-                val relativePath = file.relativeTo(inputDir)
-                val outputPath = File(outputDir.absolutePath + "/" + relativePath.path)
-
-                project.exec {
-                    executable = execute
-                    val sm = sourceMaps
-                    var arguments =
-                            listOf(
-                                    "${file.absolutePath}:${outputPath.absolutePath.replace(".scss", ".css")}"
-                                    , "--style=${style}"
-                                    , "--update"
-                            ) +
-                                    when (sm) {
-                                        is SourceMaps.None -> listOf("--no-source-map")
-                                        is SourceMaps.Embed -> listOf("--embed-source-map")
-                                        is SourceMaps.File -> listOf("--source-map-urls", sm.url.name.toLowerCase())
-                                    } +
-                                    when (sm.embedSource) {
-                                        true -> listOf("--embed-sources")
-                                        false -> listOf("--no-embed-sources")
-                                    } +
-                                    when (isWindows) {
-                                        true -> listOf("--load-path=${loadPath}")
-                                        false -> listOf()
-                                    }
-                    args = arguments
-                    val argumentString = arguments.joinToString(separator = " ")
-                    if (isWindows) {
-                        println("[sassCompile] EXECUTING: $execute $argumentString")
-                    }
-                }
+                compileFile(files, execute)
             })
         }
         for (task in tasks) {
             task.get()
         }
-        println("SassCompile completed in ${Date().time - now.time} ms")
+        println("[sassCompile] All files compiled in ${Date().time - now.time} ms with exec")
+    }
+
+    internal fun compileFile(files: List<File>, execute: String) {
+        project.exec {
+            workingDir = project.projectDir
+            executable = execute
+            val sm = sourceMaps
+            var arguments =
+                    getFileArgument(files).split(" ") +
+                            listOf(
+                                    "--style=${style}"
+                                    , "--update"
+                            ) +
+                            when (sm) {
+                                is SourceMaps.None -> listOf("--no-source-map")
+                                is SourceMaps.Embed -> listOf("--embed-source-map")
+                                is SourceMaps.File -> listOf("--source-map-urls", sm.url.name.toLowerCase())
+                            } +
+                            when (sourceMaps.embedSource) {
+                                true -> listOf("--embed-sources")
+                                false -> listOf("--no-embed-sources")
+                            } +
+                            listOf("--load-path=${loadPath}")
+            args = arguments
+            //val argumentString = arguments.joinToString(separator = " ")
+            //println("[sassCompile] EXECUTING: $execute $argumentString")
+        }
+    }
+
+    internal fun getFileArgument(files: List<File>): String {
+        var result = StringJoiner(" ")
+        for (file in files) {
+            val outputPath = File(outputDir.path + "/" + file.relativeTo(inputDir).path).relativeTo(project.projectDir)
+            result.add("${file.relativeTo(project.projectDir).path}:${outputPath.path.replace(".scss", ".css")}")
+        }
+        return result.toString()
     }
 }
