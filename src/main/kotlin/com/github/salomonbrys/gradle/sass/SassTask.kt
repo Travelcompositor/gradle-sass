@@ -101,7 +101,7 @@ open class SassTask : ConventionTask() {
             is SassExtension.Exe.Download -> "${exe.outputDir.absolutePath}/${exe.version}/dart-sass/${ext.DEFAULT_SASS_EXE}"
         }
         var allFiles = project.fileTree(inputDir).filter { it.extension.equals("scss") && !it.name.startsWith("_") }.files
-        val tasksInparalel = Math.max(4, Runtime.getRuntime().availableProcessors() - 3) // 4 como minimo porque sino tendremos el error de linea de mas de 8192 caracteres
+        val tasksInparalel = Math.max(6, Runtime.getRuntime().availableProcessors() - 3) // 4 como minimo porque sino tendremos el error de linea de mas de 8192 caracteres
         val chunkSize = Math.ceil(allFiles.size.toDouble() / tasksInparalel).toInt()
 
         val chunkedList = allFiles.chunked(chunkSize)
@@ -115,35 +115,34 @@ open class SassTask : ConventionTask() {
         for (task in tasks) {
             task.get()
         }
-        println("[sassCompile] All files compiled in ${Date().time - now.time} ms with exec")
+        println("[sassCompile] All files compiled in ${Date().time - now.time} ms with exec: ${execute} ${getArguments(sourceMaps).joinToString(" ")}")
     }
 
     internal fun compileFile(files: List<File>, execute: String) {
         project.exec {
             workingDir = project.projectDir
             executable = execute
-            val sm = sourceMaps
-            var arguments =
-                    getFileArgument(files).split(" ") +
-                            listOf(
-                                    "--style=${style}"
-                                    , "--update"
-                            ) +
-                            when (sm) {
-                                is SourceMaps.None -> listOf("--no-source-map")
-                                is SourceMaps.Embed -> listOf("--embed-source-map")
-                                is SourceMaps.File -> listOf("--source-map-urls", sm.url.name.toLowerCase())
-                            } +
-                            when (sourceMaps.embedSource) {
-                                true -> listOf("--embed-sources")
-                                false -> listOf("--no-embed-sources")
-                            } +
-                            listOf("--load-path=${loadPath}")
-            args = arguments
+            args = getFileArgument(files).split(" ") +
+                    getArguments(sourceMaps)
             //val argumentString = arguments.joinToString(separator = " ")
             //println("[sassCompile] EXECUTING: $execute $argumentString")
         }
     }
+
+    internal fun getArguments(sourceMaps: SourceMaps) = listOf(
+            "--style=${style}"
+            , "--update"
+    ) +
+            when (sourceMaps) {
+                is SourceMaps.None -> listOf("--no-source-map")
+                is SourceMaps.Embed -> listOf("--embed-source-map")
+                is SourceMaps.File -> listOf("--source-map-urls", sourceMaps.url.name.toLowerCase())
+            } +
+            when (sourceMaps.embedSource) {
+                true -> listOf("--embed-sources")
+                false -> listOf("--no-embed-sources")
+            } +
+            listOf("--load-path=${loadPath}", "--no-error-css")
 
     internal fun getFileArgument(files: List<File>): String {
         var result = StringJoiner(" ")
