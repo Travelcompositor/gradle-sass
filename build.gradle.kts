@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.github.salomonbrys.gradle.sass"
-version = "1.1.2.TRAVELC.33"
+version = "1.1.2.TRAVELC.34"
 description = "A Gradle plugin to download & run the official dart-sass release with Gradle"
 
 repositories {
@@ -52,7 +52,7 @@ publishing {
                 username  = "admin"
                 password = "travelCompositor123"
             }
-            url = uri("https://nexus.travelcompositor.com/repository/maven-releases")
+            url = uri("https://nexus.travelcdev.com/repository/maven-releases")
         }
     }
     publications {
