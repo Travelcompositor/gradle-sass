@@ -22,8 +22,6 @@ class SassPlugin : Plugin<Project> {
 
     private fun Project.applyPlugin() {
 
-        apply { plugin("base") }
-
         val sassExtract = tasks.register("sassExtract", Copy::class.java)
         val config = SassExtension(this)
         extensions.add("sass", config)
