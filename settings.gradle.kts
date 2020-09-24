@@ -10,10 +10,19 @@ pluginManagement {
     }
 
     repositories {
-        maven(url = "http://dl.bintray.com/kotlin/kotlin-eap")
-        jcenter()
         maven(url = "https://plugins.gradle.org/m2/")
     }
 }
+
+plugins {
+    `gradle-enterprise`
+}
+gradleEnterprise {
+    buildScan {
+        termsOfServiceUrl = "https://gradle.com/terms-of-service"
+        termsOfServiceAgree = "yes"
+    }
+}
+
 
 rootProject.name = "Gradle-Sass"

@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.github.salomonbrys.gradle.sass"
-version = "1.1.2.TRAVELC.34"
+version = "1.1.2.TRAVELC.52"
 description = "A Gradle plugin to download & run the official dart-sass release with Gradle"
 
 repositories {
@@ -16,13 +16,11 @@ repositories {
 }
 
 
-val kotlinVersion = "1.3.50"
+val kotlinVersion = "1.3.72"
 
 dependencies {
-    implementation(gradleApi())
-    implementation(gradleKotlinDsl())
-    implementation("org.jetbrains.kotlin:kotlin-stdlib")
-    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+    runtimeOnly(gradleApi())
+    runtimeOnly(gradleKotlinDsl())
     implementation("de.undercouch:gradle-download-task:3.4.3")
 }
 

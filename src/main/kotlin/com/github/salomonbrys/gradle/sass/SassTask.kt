@@ -57,10 +57,6 @@ open class SassTask : ConventionTask() {
     var style: String = "expanded"
 
 
-    init {
-        this.dependsOn(project.tasks["sassPrepare"])
-    }
-
     fun noSourceMap() {
         sourceMaps = SourceMaps.None()
     }
