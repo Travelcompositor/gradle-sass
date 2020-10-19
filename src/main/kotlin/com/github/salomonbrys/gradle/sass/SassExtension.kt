@@ -10,7 +10,7 @@ class SassExtension(project: Project) {
 
     val DEFAULT_DOWNLOAD_URL = "https://github.com/sass/dart-sass/releases/download"
 
-    val DEFAULT_VERSION = "1.22.10"
+    val DEFAULT_VERSION = "1.27.0"
 
     val DEFAULT_SASS_EXE = if (OperatingSystem.current().isWindows) "sass.bat" else "sass"
 

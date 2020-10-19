@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "com.github.salomonbrys.gradle.sass"
-version = "1.1.2.TRAVELC.53"
+version = "1.1.2.TRAVELC.55"
 description = "A Gradle plugin to download & run the official dart-sass release with Gradle"
 
 repositories {

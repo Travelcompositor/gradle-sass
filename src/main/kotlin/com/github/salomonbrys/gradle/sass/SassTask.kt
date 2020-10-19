@@ -6,7 +6,6 @@ import org.gradle.api.internal.ConventionTask
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
-import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
@@ -32,6 +31,9 @@ open class SassTask : ConventionTask() {
     @InputDirectory
     @PathSensitive(PathSensitivity.RELATIVE)
     var loadPath = project.projectDir.resolve("src/main/webapp")
+
+    @Input
+    var onlyEmulation = false
 
 
     enum class Url {
@@ -104,18 +106,24 @@ open class SassTask : ConventionTask() {
         val chunkedList = allFiles.chunked(chunkSize)
         val myPool = ForkJoinPool(chunkedList.size)
         val tasks = mutableListOf<ForkJoinTask<*>>()
+        val command = "${execute} ${getArguments(sourceMaps).joinToString(" ")}"
+        System.setProperty("sassCompileCommand", command)
+        if (onlyEmulation) {
+            System.out.println("Only emulation, command in system property sassCompileCommand: ${command}")
+            return
+        }
         for (files in chunkedList) {
             tasks.add(myPool.submit {
-                compileFile(files, execute)
+                compileFiles(files, execute)
             })
         }
         for (task in tasks) {
             task.get()
         }
-        println("[sassCompile] All files compiled in ${Date().time - now.time} ms with exec: ${execute} ${getArguments(sourceMaps).joinToString(" ")}")
+        println("[sassCompile] All files compiled in ${Date().time - now.time} ms with exec: ${command}")
     }
 
-    internal fun compileFile(files: List<File>, execute: String) {
+    internal fun compileFiles(files: List<File>, execute: String) {
         project.exec {
             workingDir = project.projectDir
             executable = execute
@@ -127,8 +135,7 @@ open class SassTask : ConventionTask() {
     }
 
     internal fun getArguments(sourceMaps: SourceMaps) = listOf(
-            "--style=${style}"
-            , "--update"
+            "--style=${style}", "--update"
     ) +
             when (sourceMaps) {
                 is SourceMaps.None -> listOf("--no-source-map")
