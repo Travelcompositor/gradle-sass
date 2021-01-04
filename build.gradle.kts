@@ -2,11 +2,11 @@ plugins {
     id("kotlin-platform-jvm")
     `kotlin-dsl`
     `maven-publish`
-    id("com.gradle.plugin-publish") version "0.9.10"
+    id("com.gradle.plugin-publish") version "0.12.0"
 }
 
 group = "com.github.salomonbrys.gradle.sass"
-version = "1.1.2.TRAVELC.55"
+version = "1.1.2.TRAVELC.56"
 description = "A Gradle plugin to download & run the official dart-sass release with Gradle"
 
 repositories {
@@ -16,12 +16,12 @@ repositories {
 }
 
 
-val kotlinVersion = "1.3.72"
+val kotlinVersion = "1.4.21"
 
 dependencies {
     runtimeOnly(gradleApi())
     runtimeOnly(gradleKotlinDsl())
-    implementation("de.undercouch:gradle-download-task:3.4.3")
+    implementation("de.undercouch:gradle-download-task:4.1.1")
 }
 
 pluginBundle {
@@ -48,7 +48,7 @@ publishing {
         maven {
             credentials {
                 username  = "admin"
-                password = "travelCompositor123"
+                password = "xxxxx"
             }
             url = uri("https://nexus.travelcdev.com/repository/maven-releases")
         }

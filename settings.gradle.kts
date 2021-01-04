@@ -1,10 +1,10 @@
-val gradleKotlinVersion = "1.2.31"
+val gradleKotlinVersion = "1.2.21"
 
 pluginManagement {
     resolutionStrategy {
         eachPlugin {
             when (requested.id.id) {
-                "kotlin-platform-jvm" -> useModule("org.jetbrains.kotlin:kotlin-gradle-plugin:1.2.31")
+                "kotlin-platform-jvm" -> useModule("org.jetbrains.kotlin:kotlin-gradle-plugin:1.4.21")
             }
         }
     }
